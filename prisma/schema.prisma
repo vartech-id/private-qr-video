@@ -1,0 +1,47 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Video {
+  id              String      @id @default(uuid())
+
+  fileName        String
+  localPath       String      @unique
+  thumbnailPath   String?
+
+  mimeType        String      @default("video/mp4")
+  fileSize        BigInt?
+  durationMs      Int?
+
+  objectKey       String?     @unique
+  downloadUrl     String?     @unique
+
+  status          VideoStatus @default(DETECTED)
+  retryCount      Int         @default(0)
+  errorMessage    String?
+
+  createdAt       DateTime    @default(now())
+  queuedAt        DateTime?
+  uploadStartedAt DateTime?
+  lastAttemptAt   DateTime?
+  uploadedAt      DateTime?
+  updatedAt       DateTime    @updatedAt
+
+  @@index([status, queuedAt])
+  @@index([createdAt])
+}
+
+enum VideoStatus {
+  DETECTED
+  VALIDATING
+  READY
+  QUEUED
+  UPLOADING
+  QR_READY
+  FAILED
+}

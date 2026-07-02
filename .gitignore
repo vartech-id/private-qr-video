@@ -31,3 +31,5 @@ prisma/dev.db-shm
 prisma/dev.db-wal
 
 /generated/prisma
+
+dev.db

@@ -1,7 +1,14 @@
--- RedefineTables
-PRAGMA defer_foreign_keys=ON;
-PRAGMA foreign_keys=OFF;
-CREATE TABLE "new_Video" (
+-- CreateTable
+CREATE TABLE "AppConfig" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT DEFAULT 1,
+    "hotFolderPath" TEXT NOT NULL,
+    "processExistingVideos" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL
+);
+
+-- CreateTable
+CREATE TABLE "Video" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "fileName" TEXT NOT NULL,
     "localPath" TEXT NOT NULL,
@@ -21,13 +28,18 @@ CREATE TABLE "new_Video" (
     "uploadedAt" DATETIME,
     "updatedAt" DATETIME NOT NULL
 );
-INSERT INTO "new_Video" ("createdAt", "downloadUrl", "errorMessage", "fileName", "fileSize", "id", "localPath", "objectKey", "retryCount", "status", "updatedAt", "uploadedAt") SELECT "createdAt", "downloadUrl", "errorMessage", "fileName", "fileSize", "id", "localPath", "objectKey", "retryCount", "status", "updatedAt", "uploadedAt" FROM "Video";
-DROP TABLE "Video";
-ALTER TABLE "new_Video" RENAME TO "Video";
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Video_localPath_key" ON "Video"("localPath");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Video_objectKey_key" ON "Video"("objectKey");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Video_downloadUrl_key" ON "Video"("downloadUrl");
+
+-- CreateIndex
 CREATE INDEX "Video_status_queuedAt_idx" ON "Video"("status", "queuedAt");
+
+-- CreateIndex
 CREATE INDEX "Video_createdAt_idx" ON "Video"("createdAt");
-PRAGMA foreign_keys=ON;
-PRAGMA defer_foreign_keys=OFF;

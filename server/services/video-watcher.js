@@ -1,14 +1,49 @@
 import chokidar from "chokidar";
-import { mkdir, stat } from "node:fs/promises";
-import { basename, extname, resolve } from "node:path";
+import { constants } from "node:fs";
+import { access, stat } from "node:fs/promises";
+import {
+  basename,
+  extname,
+  resolve,
+} from "node:path";
+
 import { prisma } from "../utils/prisma.js";
 import { processVideo } from "./video-processor.js";
 
+async function validateHotFolder(folderPath) {
+  const absolutePath = resolve(folderPath);
+
+  let folderStat;
+
+  try {
+    folderStat = await stat(absolutePath);
+  } catch {
+    throw new Error(
+      `Folder tidak ditemukan: ${absolutePath}`,
+    );
+  }
+
+  if (!folderStat.isDirectory()) {
+    throw new Error(
+      `Path bukan sebuah folder: ${absolutePath}`,
+    );
+  }
+
+  try {
+    await access(absolutePath, constants.R_OK);
+  } catch {
+    throw new Error(
+      `Folder tidak dapat dibaca: ${absolutePath}`,
+    );
+  }
+
+  return absolutePath;
+}
+
 async function registerVideo(filePath, options) {
   const absolutePath = resolve(filePath);
-  const extension = extname(absolutePath).toLowerCase();
 
-  if (extension !== ".mp4") {
+  if (extname(absolutePath).toLowerCase() !== ".mp4") {
     return;
   }
 
@@ -23,10 +58,6 @@ async function registerVideo(filePath, options) {
       throw new Error("Video file is empty");
     }
 
-    /*
-     * Jika localPath belum ada, buat record baru.
-     * Jika sudah ada, gunakan record yang lama.
-     */
     const video = await prisma.video.upsert({
       where: {
         localPath: absolutePath,
@@ -49,82 +80,101 @@ async function registerVideo(filePath, options) {
     console.log("[Hot Folder] Video registered:", {
       id: video.id,
       fileName: video.fileName,
-      fileSize: fileStat.size,
       status: video.status,
     });
 
-    /*
-     * Jangan menunggu proses upload.
-     * Tetapi validasi dan thumbnail tetap diselesaikan
-     * untuk video ini sebelum status menjadi QUEUED.
-     */
     await processVideo(video.id, options);
   } catch (error) {
-    console.error("[Hot Folder] Failed to register video:", {
-      filePath: absolutePath,
-      error: error?.message ?? error,
-    });
+    console.error(
+      "[Hot Folder] Failed to register video:",
+      {
+        filePath: absolutePath,
+        error: error?.message ?? error,
+      },
+    );
   }
 }
 
 export async function createVideoWatcher(options) {
   const {
     hotFolderPath,
+    processExistingVideos = false,
   } = options;
 
-  if (!hotFolderPath) {
-    throw new Error(
-      "NUXT_HOT_FOLDER_PATH is not configured",
-    );
+  if (!hotFolderPath?.trim()) {
+    throw new Error("Hot folder path wajib diisi");
   }
 
-  if (!options.thumbnailFolderPath) {
-    throw new Error(
-      "NUXT_THUMBNAIL_FOLDER_PATH is not configured",
-    );
-  }
+  const absoluteFolderPath =
+    await validateHotFolder(hotFolderPath.trim());
 
-  const absoluteFolderPath = resolve(hotFolderPath);
+  const watcher = chokidar.watch(
+    absoluteFolderPath,
+    {
+      persistent: true,
 
-  await mkdir(absoluteFolderPath, {
-    recursive: true,
-  });
+      /*
+       * false:
+       * file yang sudah ada ikut diproses.
+       *
+       * true:
+       * hanya file baru setelah watcher aktif.
+       */
+      ignoreInitial: !processExistingVideos,
 
-  const watcher = chokidar.watch(absoluteFolderPath, {
-    persistent: true,
-    ignoreInitial: false,
-    depth: 0,
+      depth: 0,
 
-    awaitWriteFinish: {
-      stabilityThreshold: 5000,
-      pollInterval: 500,
+      awaitWriteFinish: {
+        stabilityThreshold: 5000,
+        pollInterval: 500,
+      },
+
+      ignored: (watchedPath, watchedStat) => {
+        if (!watchedStat?.isFile()) {
+          return false;
+        }
+
+        return (
+          extname(watchedPath).toLowerCase() !==
+          ".mp4"
+        );
+      },
     },
-
-    ignored: (watchedPath, stats) => {
-      if (!stats?.isFile()) {
-        return false;
-      }
-
-      return extname(watchedPath).toLowerCase() !== ".mp4";
-    },
-  });
+  );
 
   watcher.on("add", (filePath) => {
-    console.log("[Hot Folder] New video detected:", filePath);
+    console.log(
+      "[Hot Folder] New video detected:",
+      filePath,
+    );
 
     void registerVideo(filePath, options);
   });
 
-  watcher.on("ready", () => {
-    console.log(
-      "[Hot Folder] Watcher ready:",
-      absoluteFolderPath,
+  watcher.on("error", (error) => {
+    console.error(
+      "[Hot Folder] Watcher error:",
+      error,
     );
   });
 
-  watcher.on("error", (error) => {
-    console.error("[Hot Folder] Watcher error:", error);
-  });
+  try {
+    await new Promise((resolveReady, rejectReady) => {
+      watcher.once("ready", resolveReady);
+      watcher.once("error", rejectReady);
+    });
+  } catch (error) {
+    await watcher.close();
+    throw error;
+  }
 
-  return watcher;
+  console.log(
+    "[Hot Folder] Watcher ready:",
+    absoluteFolderPath,
+  );
+
+  return {
+    watcher,
+    folderPath: absoluteFolderPath,
+  };
 }

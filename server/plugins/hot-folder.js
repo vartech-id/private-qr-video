@@ -1,40 +1,101 @@
-import { createVideoWatcher } from "../services/video-watcher.js";
+import { prisma } from "#server/utils/prisma.js";
 
-export default defineNitroPlugin(async (nitroApp) => {
-  const config = useRuntimeConfig();
+import {
+  createHotFolderManager,
+} from "../services/hot-folder-manager.js";
 
-  if (globalThis.__videoHotFolderWatcher) {
-    console.log("[Hot Folder] Watcher already running");
-    return;
-  }
+export default defineNitroPlugin(
+  async (nitroApp) => {
+    if (globalThis.__videoHotFolderManager) {
+      console.log(
+        "[Hot Folder Manager] Already running",
+      );
 
-  try {
-    const watcher = await createVideoWatcher({
-      hotFolderPath: config.hotFolderPath,
-      thumbnailFolderPath: config.thumbnailFolderPath,
-      ffmpegPath: config.ffmpegPath,
-      ffprobePath: config.ffprobePath,
-    });
+      return;
+    }
 
-    globalThis.__videoHotFolderWatcher = watcher;
+    const runtimeConfig = useRuntimeConfig();
 
-    nitroApp.hooks.hook("close", async () => {
-      if (
-        globalThis.__videoHotFolderWatcher !== watcher
-      ) {
-        return;
+    const manager =
+      createHotFolderManager({
+        thumbnailFolderPath:
+          runtimeConfig.thumbnailFolderPath,
+
+        ffmpegPath:
+          runtimeConfig.ffmpegPath,
+
+        ffprobePath:
+          runtimeConfig.ffprobePath,
+      });
+
+    globalThis.__videoHotFolderManager =
+      manager;
+
+    try {
+      const databaseConfig =
+        await prisma.appConfig.findUnique({
+          where: {
+            id: 1,
+          },
+        });
+
+      /*
+       * Prioritas:
+       * 1. SQLite
+       * 2. .env
+       */
+      const initialHotFolderPath =
+        databaseConfig?.hotFolderPath ||
+        runtimeConfig.hotFolderPath;
+
+      /*
+       * Saat belum pernah disimpan lewat admin,
+       * pertahankan behavior lama:
+       * file existing dari folder .env ikut diperiksa.
+       */
+      const processExistingVideos =
+        databaseConfig
+          ? databaseConfig.processExistingVideos
+          : true;
+
+      if (initialHotFolderPath) {
+        await manager.activate({
+          hotFolderPath:
+            initialHotFolderPath,
+
+          processExistingVideos,
+        });
+      } else {
+        console.warn(
+          "[Hot Folder Manager] Hot folder belum dikonfigurasi",
+        );
       }
+    } catch (error) {
+      /*
+       * Manager tetap tersedia agar admin
+       * dapat memperbaiki path.
+       */
+      console.error(
+        "[Hot Folder Manager] Startup failed:",
+        error?.message ?? error,
+      );
+    }
 
-      await watcher.close();
+    nitroApp.hooks.hook(
+      "close",
+      async () => {
+        if (
+          globalThis.__videoHotFolderManager !==
+          manager
+        ) {
+          return;
+        }
 
-      globalThis.__videoHotFolderWatcher = undefined;
+        await manager.stop();
 
-      console.log("[Hot Folder] Watcher stopped");
-    });
-  } catch (error) {
-    console.error(
-      "[Hot Folder] Failed to start watcher:",
-      error?.message ?? error,
+        globalThis.__videoHotFolderManager =
+          undefined;
+      },
     );
-  }
-});
+  },
+);

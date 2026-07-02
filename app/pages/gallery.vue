@@ -106,15 +106,6 @@ function formatDate(value) {
   }).format(date);
 }
 
-function resetFilters() {
-  Object.assign(filters, {
-    status: "ALL",
-    search: "",
-    dateFrom: "",
-    dateTo: "",
-  });
-}
-
 onMounted(() => {
   pollingInterval = window.setInterval(refresh, 2000);
 });
@@ -136,7 +127,7 @@ onBeforeUnmount(() => {
         icon="i-lucide-search"
         placeholder="Cari nama video..."
         size="lg"
-        class="sm:col-span-2 xl:col-span-1"
+        class="sm:col-span-2 xl:col-span-2"
       />
 
       <USelect
@@ -156,16 +147,6 @@ onBeforeUnmount(() => {
         v-model="filters.dateTo"
         type="date"
         size="lg"
-      />
-
-      <UButton
-        label="Reset"
-        icon="i-lucide-rotate-ccw"
-        color="neutral"
-        variant="outline"
-        size="lg"
-        block
-        @click="resetFilters"
       />
     </section>
 
@@ -193,7 +174,7 @@ onBeforeUnmount(() => {
       <article
         v-for="video in videos"
         :key="video.id"
-        class="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-200 transition hover:-translate-y-1 hover:shadow-lg dark:bg-gray-900 dark:ring-gray-800"
+        class="overflow-hidden rounded-xl bg-default shadow-sm ring-1 ring-default transition hover:-translate-y-1 hover:shadow-lg"
       >
         <UModal
           title="Video preview"
@@ -205,7 +186,7 @@ onBeforeUnmount(() => {
           <!-- Card sebagai trigger -->
           <div class="group cursor-pointer">
             <div
-              class="relative aspect-[4/3] overflow-hidden bg-gray-950"
+              class="relative aspect-[4/3] overflow-hidden bg-elevated"
             >
               <img
                 v-if="video.thumbnailUrl"
@@ -217,13 +198,13 @@ onBeforeUnmount(() => {
 
               <div
                 v-else
-                class="grid h-full place-items-center p-5 text-center text-sm text-gray-400"
+                class="grid h-full place-items-center p-5 text-center text-sm text-muted"
               >
                 Thumbnail belum tersedia
               </div>
 
               <span
-                class="absolute right-3 top-3 rounded-full px-3 py-1 text-xs font-medium text-white backdrop-blur"
+                class="absolute right-3 top-3 rounded-lg px-2 py-1 text-[10px] font-medium text-white backdrop-blur"
                 :class="getStatusClass(video.status)"
               >
                 {{ getStatusLabel(video.status) }}
@@ -282,7 +263,6 @@ onBeforeUnmount(() => {
                   :src="video.streamUrl"
                   controls
                   autoplay
-                  muted
                   loop
                   playsinline
                   preload="metadata"
@@ -293,7 +273,7 @@ onBeforeUnmount(() => {
 
                 <div
                   v-else
-                  class="grid min-h-64 w-full place-items-center rounded-xl bg-gray-100 text-muted dark:bg-gray-800"
+                  class="grid min-h-64 w-full place-items-center rounded-xl bg-elevated text-muted"
                 >
                   Video belum tersedia
                 </div>
@@ -301,7 +281,7 @@ onBeforeUnmount(() => {
 
               <!-- QR: 1/3 -->
               <aside
-                class="flex min-h-56 flex-col items-center justify-center gap-4 border-t border-gray-200 pt-6 text-center lg:basis-1/3 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0 dark:border-gray-800"
+                class="flex min-h-56 flex-col items-center justify-center gap-4 border-t border-default pt-6 text-center lg:basis-1/3 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0"
               >
                 <div>
                   <h2 class="text-2xl font-semibold">
@@ -318,7 +298,7 @@ onBeforeUnmount(() => {
 
                 <div
                   v-else
-                  class="grid size-[200px] place-items-center rounded-xl bg-gray-100 p-5 text-sm text-muted dark:bg-gray-800"
+                  class="grid size-[200px] place-items-center rounded-xl bg-elevated p-5 text-sm text-muted"
                 >
                   QR belum tersedia
                 </div>

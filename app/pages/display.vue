@@ -147,7 +147,7 @@ onBeforeUnmount(() => {
 
 <template>
   <main
-    class="bg-zinc-950 text-white md:overflow-hidden"
+    class="bg-elevated text-highlighted md:overflow-hidden"
     :class="displayHeightClass"
   >
     <section
@@ -156,7 +156,7 @@ onBeforeUnmount(() => {
     >
       <!-- VIDEO PANEL: rasio 2 -->
       <section
-        class="flex h-[60dvh] min-w-0 basis-full items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_center,#181b23_0%,#090a0d_70%)] p-4 md:h-full md:min-h-0 md:basis-[67%] md:p-6"
+        class="flex h-[60dvh] min-w-0 basis-full items-center justify-center overflow-hidden bg-elevated p-4 md:h-full md:min-h-0 md:basis-[67%] md:p-6"
       >
         <!-- Container yang mengapit video -->
         <div
@@ -182,8 +182,8 @@ onBeforeUnmount(() => {
           :title="videoMessage.title"
           :description="videoMessage.description"
           :ui="{
-            title: error ? 'text-red-300' : 'text-white',
-            description: 'text-zinc-400',
+            title: error ? 'text-red-600' : 'text-highlighted',
+            description: 'text-muted',
           }"
         >
           <template #leading>
@@ -198,8 +198,8 @@ onBeforeUnmount(() => {
               class="size-10"
               :class="{
                 'animate-spin': status === 'pending',
-                'text-red-300': error,
-                'text-zinc-400': !error,
+                'text-red-600': error,
+                'text-muted': !error,
               }"
             />
           </template>

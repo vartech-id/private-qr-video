@@ -3,7 +3,12 @@ import tailwindcss from "@tailwindcss/vite";
 
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
-  devtools: { enabled: true },
+  devtools: { enabled: false },
+  colorMode: {
+    preference: 'light',
+    fallback: 'light',
+    storageKey: 'private-qr-video-color-mode',
+  },
   runtimeConfig: {
     hotFolderPath: "",
     thumbnailFolderPath: "",
